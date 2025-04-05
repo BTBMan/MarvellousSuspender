@@ -1,10 +1,39 @@
-/*global chrome, historyUtils, gsSession, gsIndexedDb, gsUtils */
+/*global chrome, historyUtils, gsSession, gsIndexedDb, gsUtils, gsViewGlobals */
 (function(global) {
   'use strict';
 
   try {
-    chrome.extension.getBackgroundPage().tgs.setViewGlobals(global);
+    gsViewGlobals
+      .setViewGlobals(global)
+      .then(() => {
+        gsUtils.documentReadyAndLocalisedAsPromised(document).then(function() {
+          setSessionManagerClickHandler();
+          setRestartExtensionClickHandler(true);
+          setExportBackupClickHandler();
+
+          var currentVersion = chrome.runtime.getManifest().version;
+          gsIndexedDb
+            .fetchSessionRestorePoint(currentVersion)
+            .then(function(sessionRestorePoint) {
+              if (!sessionRestorePoint) {
+                gsUtils.warning(
+                  'update',
+                  'Couldnt find session restore point. Something has gone horribly wrong!!'
+                );
+                document.getElementById('noBackupInfo').style.display = 'block';
+                document.getElementById('backupInfo').style.display = 'none';
+                document.getElementById('exportBackupBtn').style.display =
+                  'none';
+              }
+            });
+        });
+      })
+      .catch(err => {
+        console.error('Failed to initialize global variables:', err);
+        window.setTimeout(() => window.location.reload(), 1000);
+      });
   } catch (e) {
+    console.error(e);
     window.setTimeout(() => window.location.reload(), 1000);
     return;
   }
@@ -17,7 +46,8 @@
       // }
       // if (result) {
 
-      document.getElementById('restartExtensionBtn').className += ' btnDisabled';
+      document.getElementById('restartExtensionBtn').className +=
+        ' btnDisabled';
       document.getElementById('restartExtensionBtn').onclick = null;
 
       const currentSession = await gsSession.buildCurrentSession();
@@ -54,29 +84,8 @@
   function setSessionManagerClickHandler() {
     document.getElementById('sessionManagerLink').onclick = function(e) {
       e.preventDefault();
-      chrome.tabs.create({ url: chrome.extension.getURL('history.html') });
+      chrome.tabs.create({ url: chrome.runtime.getURL('history.html') });
       setRestartExtensionClickHandler(false);
     };
   }
-
-  gsUtils.documentReadyAndLocalisedAsPromised(document).then(function() {
-    setSessionManagerClickHandler();
-    setRestartExtensionClickHandler(true);
-    setExportBackupClickHandler();
-
-    var currentVersion = chrome.runtime.getManifest().version;
-    gsIndexedDb
-      .fetchSessionRestorePoint(currentVersion)
-      .then(function(sessionRestorePoint) {
-        if (!sessionRestorePoint) {
-          gsUtils.warning(
-            'update',
-            'Couldnt find session restore point. Something has gone horribly wrong!!'
-          );
-          document.getElementById('noBackupInfo').style.display = 'block';
-          document.getElementById('backupInfo').style.display = 'none';
-          document.getElementById('exportBackupBtn').style.display = 'none';
-        }
-      });
-  });
 })(this);

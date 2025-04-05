@@ -120,10 +120,10 @@ const tgs = (function() {
 
   async function initAsPromised() {
     gsUtils.log('background', 'PERFORMING BACKGROUND INIT...');
-    addCommandListeners();
+    // addCommandListeners();
     addMessageListeners();
-    addChromeListeners();
-    addMiscListeners();
+    // addChromeListeners();
+    // addMiscListeners();
 
     //initialise unsuspended tab props
     resetAutoSuspendTimerForAllTabs();
@@ -151,6 +151,7 @@ const tgs = (function() {
     }
     gsUtils.log('background', 'init successful');
   }
+  initAsPromised();
 
   function getInternalViewByTabId(tabId) {
     const internalViews = chrome.runtime.getViews({ tabId: tabId });
@@ -212,11 +213,33 @@ const tgs = (function() {
     return _currentFocusedTabIdByWindowId[_currentFocusedWindowId] === tabId;
   }
 
+  function addMessageListeners() {
+    // 添加 Manifest V3 消息处理 - 用于获取全局变量
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action === 'getExtensionGlobals') {
+        const globals = getExtensionGlobals();
+        if (globals) {
+          // 将全局库的引用返回给请求页面
+          sendResponse({ globals });
+        } else {
+          sendResponse({ error: 'Lib not ready' });
+        }
+        return true; // 保持消息通道开放以支持异步响应
+      } else if (message.action === 'isReady') {
+        const isReady = getExtensionGlobals() !== null;
+        sendResponse({ isReady });
+        return true;
+      }
+    });
+  }
+
   // Other functions and event listeners...
 
   return {
     initAsPromised,
-    isCurrentFocusedTab, // Add the function to the returned object
+    isCurrentFocusedTab,
+    setViewGlobals,
+    getExtensionGlobals,
     // Other exported functions...
   };
 })();

@@ -1,25 +1,39 @@
-/*global chrome, gsSession, gsUtils, gsFavicon */
+/*global chrome, gsSession, gsUtils, gsFavicon, gsViewGlobals */
 // eslint-disable-next-line no-unused-vars
 var historyItems = (function(global) {
   'use strict';
 
-  if (
-    !chrome.extension.getBackgroundPage() ||
-    !chrome.extension.getBackgroundPage().tgs
-  ) {
-    return;
+  // 初始化状态标志
+  var isInitialized = false;
+
+  // 初始化函数，返回一个 Promise
+  function initialize() {
+    if (isInitialized) {
+      return Promise.resolve();
+    }
+    return gsViewGlobals
+      .setViewGlobals(global)
+      .then(() => {
+        isInitialized = true;
+      })
+      .catch(err => {
+        console.error('Failed to initialize global variables:', err);
+        return Promise.reject(err);
+      });
   }
-  chrome.extension.getBackgroundPage().tgs.setViewGlobals(global);
 
   function createSessionHtml(session, showLinks) {
+    if (!isInitialized) {
+      return initialize().then(() => createSessionHtml(session, showLinks));
+    }
     session.windows = session.windows || [];
 
     let sessionType =
         session.sessionId === gsSession.getSessionId()
           ? 'current'
           : session.name
-          ? 'saved'
-          : 'recent',
+            ? 'saved'
+            : 'recent',
       sessionContainer,
       sessionTitle,
       sessionSave,
@@ -39,7 +53,9 @@ var historyItems = (function(global) {
     let tabText = tabCnt > 1 ? 'js_history_tabs' : 'js_history_tab';
 
     titleText =
-      ((sessionType === 'saved') ? session.name : gsUtils.getHumanDate(session.date)) +
+      (sessionType === 'saved'
+        ? session.name
+        : gsUtils.getHumanDate(session.date)) +
       '&nbsp;&nbsp;<small>(' +
       winCnt +
       ' ' +
@@ -69,7 +85,7 @@ var historyItems = (function(global) {
         class: 'groupLink saveLink',
         href: '#',
       },
-      chrome.i18n.getMessage('js_history_save'),
+      chrome.i18n.getMessage('js_history_save')
     );
 
     sessionDelete = createEl(
@@ -78,7 +94,7 @@ var historyItems = (function(global) {
         class: 'groupLink deleteLink',
         href: '#',
       },
-      chrome.i18n.getMessage('js_history_delete'),
+      chrome.i18n.getMessage('js_history_delete')
     );
 
     windowResuspend = createEl(
@@ -87,7 +103,7 @@ var historyItems = (function(global) {
         class: 'groupLink resuspendLink',
         href: '#',
       },
-      chrome.i18n.getMessage('js_history_resuspend'),
+      chrome.i18n.getMessage('js_history_resuspend')
     );
 
     windowReload = createEl(
@@ -96,7 +112,7 @@ var historyItems = (function(global) {
         class: 'groupLink reloadLink',
         href: '#',
       },
-      chrome.i18n.getMessage('js_history_reload'),
+      chrome.i18n.getMessage('js_history_reload')
     );
 
     sessionExport = createEl(
@@ -105,7 +121,7 @@ var historyItems = (function(global) {
         class: 'groupLink exportLink',
         href: '#',
       },
-      chrome.i18n.getMessage('js_history_export'),
+      chrome.i18n.getMessage('js_history_export')
     );
 
     sessionContainer = createEl('div', {
@@ -133,6 +149,11 @@ var historyItems = (function(global) {
   }
 
   function createWindowHtml(window, index, showLinks) {
+    if (!isInitialized) {
+      return initialize().then(() =>
+        createWindowHtml(window, index, showLinks)
+      );
+    }
     let groupHeading, windowContainer, groupUnsuspendCurrent, groupUnsuspendNew;
 
     groupHeading = createEl('div', {
@@ -145,27 +166,30 @@ var historyItems = (function(global) {
       'span',
 
       {},
-      windowString + ' ' + (index + 1) + ':\u00A0',
+      windowString + ' ' + (index + 1) + ':\u00A0'
     );
 
-    windowContainer.appendChild(createEl(
-      'a',
-      {
-        class: 'groupLink exportLink' + index,
-        href: '#',
-      },
-      chrome.i18n.getMessage('js_history_export'),
-    ));
+    windowContainer.appendChild(
+      createEl(
+        'a',
+        {
+          class: 'groupLink exportLink' + index,
+          href: '#',
+        },
+        chrome.i18n.getMessage('js_history_export')
+      )
+    );
 
-    windowContainer.appendChild(createEl(
-      'a',
-      {
-        class: 'groupLink saveLink' + index,
-        href: '#',
-      },
-      chrome.i18n.getMessage('js_history_save'),
-    ));
-
+    windowContainer.appendChild(
+      createEl(
+        'a',
+        {
+          class: 'groupLink saveLink' + index,
+          href: '#',
+        },
+        chrome.i18n.getMessage('js_history_save')
+      )
+    );
 
     groupUnsuspendCurrent = createEl(
       'a',
@@ -173,7 +197,7 @@ var historyItems = (function(global) {
         class: 'groupLink resuspendLink ',
         href: '#main-div-' + index,
       },
-      chrome.i18n.getMessage('js_history_resuspend'),
+      chrome.i18n.getMessage('js_history_resuspend')
     );
 
     groupUnsuspendNew = createEl(
@@ -182,7 +206,7 @@ var historyItems = (function(global) {
         class: 'groupLink reloadLink',
         href: '#main-div-' + index,
       },
-      chrome.i18n.getMessage('js_history_reload'),
+      chrome.i18n.getMessage('js_history_reload')
     );
 
     groupHeading.appendChild(windowContainer);
@@ -195,6 +219,14 @@ var historyItems = (function(global) {
   }
 
   async function createTabHtml(tab, showLinks) {
+    if (!isInitialized) {
+      try {
+        await initialize();
+      } catch (err) {
+        console.error('Failed to initialize global variables:', err);
+        return document.createElement('div');
+      }
+    }
     let linksSpan, listImg, listLink, listHover;
 
     if (tab.sessionId) {
@@ -215,7 +247,7 @@ var historyItems = (function(global) {
       {
         class: 'itemHover removeLink',
       },
-      '\u2716',
+      '\u2716'
     );
 
     const faviconMeta = await gsFavicon.getFaviconMetaData(tab);
@@ -233,7 +265,7 @@ var historyItems = (function(global) {
         href: tab.url,
         target: '_blank',
       },
-      tab.title && tab.title.length > 1 ? tab.title : tab.url,
+      tab.title && tab.title.length > 1 ? tab.title : tab.url
     );
 
     if (showLinks) {
@@ -263,9 +295,12 @@ var historyItems = (function(global) {
     return el;
   }
 
+  // 确保立即初始化
+  initialize();
+
   return {
-    createSessionHtml: createSessionHtml,
-    createWindowHtml: createWindowHtml,
-    createTabHtml: createTabHtml,
+    createSessionHtml,
+    createWindowHtml,
+    createTabHtml,
   };
 })(this);

@@ -1,10 +1,36 @@
-/*global chrome, gsStorage, gsChrome, gsUtils */
+/*global chrome, gsStorage, gsChrome, gsUtils, gsViewGlobals */
 (function(global) {
   try {
-    chrome.extension.getBackgroundPage().tgs.setViewGlobals(global);
+    gsViewGlobals
+      .setViewGlobals(global)
+      .then(() => {
+        gsUtils.documentReadyAndLocalisedAsPromised(document).then(function() {
+          initSettings();
+
+          var optionEls = document.getElementsByClassName('option'),
+            element,
+            i;
+
+          for (i = 0; i < optionEls.length; i++) {
+            element = optionEls[i];
+            if (
+              element.tagName === 'INPUT' &&
+              element.hasAttribute('type') &&
+              element.getAttribute('type') === 'checkbox'
+            ) {
+              element.onclick = handleChange(element);
+            } else {
+              element.onchange = handleChange(element);
+            }
+          }
+        });
+      })
+      .catch(e => {
+        console.error('Failed to initialize global variables:', e);
+        window.setTimeout(() => window.location.reload(), 1000);
+      });
   } catch (e) {
     window.setTimeout(() => window.location.reload(), 1000);
-    return;
   }
 
   var elementPrefMap = {
@@ -28,7 +54,6 @@
     whitelist: gsStorage.WHITELIST,
   };
 
-
   function selectComboBox(element, key) {
     var i, child;
 
@@ -44,7 +69,9 @@
   //populate settings from synced storage
   function initSettings() {
     //Set theme
-    document.body.classList.add(gsStorage.getOption(gsStorage.THEME) === 'dark' ? 'dark' : null);
+    document.body.classList.add(
+      gsStorage.getOption(gsStorage.THEME) === 'dark' ? 'dark' : null
+    );
 
     var optionEls = document.getElementsByClassName('option'),
       pref,
@@ -59,10 +86,10 @@
     addClickHandlers();
 
     setForceScreenCaptureVisibility(
-      gsStorage.getOption(gsStorage.SCREEN_CAPTURE) !== '0',
+      gsStorage.getOption(gsStorage.SCREEN_CAPTURE) !== '0'
     );
     setAutoSuspendOptionsVisibility(
-      parseFloat(gsStorage.getOption(gsStorage.SUSPEND_TIME)) > 0,
+      parseFloat(gsStorage.getOption(gsStorage.SUSPEND_TIME)) > 0
     );
     setSyncNoteVisibility(!gsStorage.getOption(gsStorage.SYNC_SETTINGS));
 
@@ -78,22 +105,20 @@
   function addClickHandlers() {
     document.getElementById('preview').addEventListener('change', function() {
       if (this.value === '1' || this.value === '2') {
-        chrome.permissions.request({
-          origins: [
-            'http://*/*',
-            'https://*/*',
-            'file://*/*',
-          ],
-        }, function(granted) {
-          if (!granted) {
-            let select = document.getElementById('preview');
-            select.value = '0';
-            select.dispatchEvent(new Event('change'));
+        chrome.permissions.request(
+          {
+            origins: ['http://*/*', 'https://*/*', 'file://*/*'],
+          },
+          function(granted) {
+            if (!granted) {
+              let select = document.getElementById('preview');
+              select.value = '0';
+              select.dispatchEvent(new Event('change'));
+            }
           }
-        });
+        );
       }
     });
-
   }
 
   function populateOption(element, value) {
@@ -153,7 +178,7 @@
         } else {
           el.style.display = 'none';
         }
-      },
+      }
     );
   }
 
@@ -184,7 +209,7 @@
         gsUtils.performPostSaveUpdates(
           [prefKey],
           { [prefKey]: oldValue },
-          { [prefKey]: newValue },
+          { [prefKey]: newValue }
         );
       }
     };
@@ -209,8 +234,6 @@
   }
 
   gsUtils.documentReadyAndLocalisedAsPromised(document).then(function() {
-    initSettings();
-
     var optionEls = document.getElementsByClassName('option'),
       element,
       i;
@@ -222,7 +245,7 @@
         element.addEventListener(
           'input',
           gsUtils.debounce(handleChange(element), 200),
-          false,
+          false
         );
       } else {
         element.onchange = handleChange(element);
@@ -237,10 +260,10 @@
           tab =>
             gsUtils.isSuspendedTab(tab)
               ? gsUtils.getOriginalUrl(tab.url)
-              : tab.url,
+              : tab.url
         )
         .filter(
-          url => !gsUtils.isSuspendedUrl(url) && gsUtils.checkWhiteList(url),
+          url => !gsUtils.isSuspendedUrl(url) && gsUtils.checkWhiteList(url)
         )
         .map(url => (url.length > 55 ? url.substr(0, 52) + '...' : url));
       if (tabUrls.length === 0) {
@@ -249,14 +272,14 @@
       }
       const firstUrls = tabUrls.splice(0, 22);
       let alertString = `${chrome.i18n.getMessage(
-        'js_options_whitelist_matches_heading',
+        'js_options_whitelist_matches_heading'
       )}\n${firstUrls.join('\n')}`;
 
       if (tabUrls.length > 0) {
         alertString += `\n${chrome.i18n.getMessage(
-          'js_options_whitelist_matches_overflow_prefix',
+          'js_options_whitelist_matches_overflow_prefix'
         )} ${tabUrls.length} ${chrome.i18n.getMessage(
-          'js_options_whitelist_matches_overflow_suffix',
+          'js_options_whitelist_matches_overflow_suffix'
         )}`;
       }
       alert(alertString);
@@ -268,12 +291,11 @@
         document.getElementsByClassName('noIncognito'),
         function(el) {
           el.style.display = 'none';
-        },
+        }
       );
       window.alert(chrome.i18n.getMessage('js_options_incognito_warning'));
     }
   });
-
 
   global.exports = {
     initSettings,

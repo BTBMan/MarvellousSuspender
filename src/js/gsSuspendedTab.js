@@ -7,7 +7,7 @@ var gsSuspendedTab = (function() {
     if (!tabView) {
       gsUtils.warning(
         tab.id,
-        'Could not get internalTabView for suspended tab',
+        'Could not get internalTabView for suspended tab'
       );
     }
     const suspendedUrl = tab.url;
@@ -47,7 +47,7 @@ var gsSuspendedTab = (function() {
       tabView.document,
       tab,
       previewMode,
-      previewUri,
+      previewUri
     );
 
     // Set theme
@@ -65,7 +65,7 @@ var gsSuspendedTab = (function() {
     // Set reason
     const suspendReasonInt = tgs.getTabStatePropForTabId(
       tab.id,
-      tgs.STATE_SUSPEND_REASON,
+      tgs.STATE_SUSPEND_REASON
     );
     let suspendReason = null;
     if (suspendReasonInt === 3) {
@@ -109,7 +109,7 @@ var gsSuspendedTab = (function() {
       tabView.document,
       tab,
       previewMode,
-      previewUri,
+      previewUri
     );
 
     const scrollPosition = gsUtils.getSuspendedScrollPosition(tab.url);
@@ -140,7 +140,9 @@ var gsSuspendedTab = (function() {
 
     //Check if there are updates
     let el = _document.getElementById('tmsUpdateAvailable');
-    el.style.display = gsStorage.getOption(gsStorage.UPDATE_AVAILABLE) ? 'block' : 'none';
+    el.style.display = gsStorage.getOption(gsStorage.UPDATE_AVAILABLE)
+      ? 'block'
+      : 'none';
     el.style.paddingTop = '80px';
     // Prevent unsuspend by parent container
     // Using mousedown event otherwise click can still be triggered if
@@ -154,7 +156,7 @@ var gsSuspendedTab = (function() {
 
   function setGoToUpdateHandler(_document) {
     _document.getElementById('gotoUpdatePage').onclick = async function(e) {
-      await gsChrome.tabsCreate(chrome.extension.getURL('update.html'));
+      await gsChrome.tabsCreate(chrome.runtime.getURL('update.html'));
     };
   }
 
@@ -228,7 +230,7 @@ var gsSuspendedTab = (function() {
       previewEl.setAttribute('id', 'gsPreviewContainer');
       previewEl.classList.add('gsPreviewContainer');
       previewEl.innerHTML = _document.getElementById(
-        'previewTemplate',
+        'previewTemplate'
       ).innerHTML;
       const unsuspendTabHandler = buildUnsuspendTabHandler(_document, tab);
       previewEl.onclick = unsuspendTabHandler;
@@ -249,7 +251,7 @@ var gsSuspendedTab = (function() {
 
   function addWatermarkHandler(_document) {
     _document.querySelector('.watermark').onclick = () => {
-      chrome.tabs.create({ url: chrome.extension.getURL('about.html') });
+      chrome.tabs.create({ url: chrome.runtime.getURL('about.html') });
     };
   }
 
@@ -257,7 +259,7 @@ var gsSuspendedTab = (function() {
     _document,
     tab,
     previewMode,
-    previewUri,
+    previewUri
   ) {
     const builtImagePreview =
       _document.getElementById('gsPreviewContainer') !== null;
@@ -296,7 +298,7 @@ var gsSuspendedTab = (function() {
         '<span class="hotkeyCommand">(' + command + ')</span>';
     } else {
       const reloadString = chrome.i18n.getMessage(
-        'js_suspended_hotkey_to_reload',
+        'js_suspended_hotkey_to_reload'
       );
       hotkeyEl.innerHTML = `<a id='setKeyboardShortcut' href='#'>${reloadString}</a>`;
     }
@@ -316,7 +318,7 @@ var gsSuspendedTab = (function() {
       } else {
         gsUtils.log(
           tab.id,
-          'Ignoring beforeUnload as tab is not currently focused.',
+          'Ignoring beforeUnload as tab is not currently focused.'
         );
       }
     });
@@ -343,15 +345,14 @@ var gsSuspendedTab = (function() {
   }
 
   function showUnsuspendAnimation(_document) {
-    if (_document.body.classList.contains('img-preview-mode')) {
-      _document.getElementById('refreshSpinner').classList.add('spinner');
-    } else {
-      _document.body.classList.add('waking');
-      _document.getElementById('snoozyImg').src = chrome.extension.getURL(
-        'img/snoozy_tab_awake.svg',
-      );
-      _document.getElementById('snoozySpinner').classList.add('spinner');
+    if (_document.body.classList.contains('waking')) {
+      return;
     }
+    _document.body.classList.add('waking');
+    _document.getElementById('snoozyImg').src = chrome.runtime.getURL(
+      'img/snoozy_tab_awake.svg'
+    );
+    _document.getElementById('snoozySpinner').classList.add('spinner');
   }
 
   function loadToastTemplate(_document) {

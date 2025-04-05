@@ -1,18 +1,21 @@
-/* global chrome, gsIndexedDb, gsUtils */
+/* global chrome, gsIndexedDb, gsUtils, gsViewGlobals */
 // eslint-disable-next-line no-unused-vars
 var historyUtils = (function(global) {
   'use strict';
 
-  if (
-    !chrome.extension.getBackgroundPage() ||
-    !chrome.extension.getBackgroundPage().tgs
-  ) {
+  try {
+    // 使用 gsViewGlobals 替代 chrome.extension.getBackgroundPage()
+    gsViewGlobals.setViewGlobals(global).catch(err => {
+      console.error('Failed to initialize global variables:', err);
+      window.setTimeout(() => window.location.reload(), 1000);
+    });
+  } catch (e) {
+    console.error(e);
+    window.setTimeout(() => window.location.reload(), 1000);
     return;
   }
-  chrome.extension.getBackgroundPage().tgs.setViewGlobals(global);
 
-  var noop = function() {
-  };
+  var noop = function() {};
 
   function importSession(e) {
     var f = e.target.files[0];
@@ -37,7 +40,7 @@ var historyUtils = (function(global) {
   async function handleImport(sessionName, textContents) {
     sessionName = window.prompt(
       chrome.i18n.getMessage('js_history_enter_name_for_session'),
-      sessionName,
+      sessionName
     );
     if (sessionName) {
       const shouldSave = await new Promise(resolve => {
@@ -119,7 +122,6 @@ var historyUtils = (function(global) {
 
   function exportSession(session, callback, windowId) {
     function _exInternalExport(curWindow) {
-
       curWindow.tabs.forEach(function(curTab, tabIndex) {
         if (gsUtils.isSuspendedTab(curTab)) {
           sessionString += gsUtils.getOriginalUrl(curTab.url) + '\n';
@@ -141,7 +143,6 @@ var historyUtils = (function(global) {
       } else {
         _exInternalExport(curWindow);
       }
-
     });
 
     const blob = new Blob([sessionString], { type: 'text/plain' });
@@ -161,7 +162,7 @@ var historyUtils = (function(global) {
       });
       if (nameExists) {
         var overwrite = window.confirm(
-          chrome.i18n.getMessage('js_history_confirm_session_overwrite'),
+          chrome.i18n.getMessage('js_history_confirm_session_overwrite')
         );
         if (!overwrite) {
           callback(false);
@@ -179,13 +180,13 @@ var historyUtils = (function(global) {
         gsUtils.warning(
           'historyUtils',
           'Could not find session with sessionId: ' +
-          sessionId +
-          '. Save aborted',
+            sessionId +
+            '. Save aborted'
         );
         return;
       }
       var sessionName = window.prompt(
-        chrome.i18n.getMessage('js_history_enter_name_for_session'),
+        chrome.i18n.getMessage('js_history_enter_name_for_session')
       );
       if (sessionName) {
         historyUtils.validateNewSessionName(sessionName, function(shouldSave) {
@@ -193,7 +194,10 @@ var historyUtils = (function(global) {
             session.name = sessionName;
             // document.getElementById('debugWindowId').innerText = document.getElementById('debugWindowId').innerText + ' - SessionData: ' + JSON.stringify(session);
             let newSession = JSON.parse(JSON.stringify(session));
-            newSession.windows = (windowId !== null) ? session.windows.filter((curWindow) => (curWindow.id === windowId)) : session.windows;
+            newSession.windows =
+              windowId !== null
+                ? session.windows.filter(curWindow => curWindow.id === windowId)
+                : session.windows;
             // document.getElementById('debugWindowId').innerText = JSON.stringify(newSession);
 
             gsIndexedDb.addToSavedSessions(newSession).then(function() {
@@ -210,13 +214,15 @@ var historyUtils = (function(global) {
       chrome.tabs.query({}, function(tabs) {
         var count = 0;
         var prefix_before = 'chrome-extension://' + from_id;
-        var prefix_after = 'chrome-extension://' + chrome.i18n.getMessage('@@extension_id');
+        var prefix_after =
+          'chrome-extension://' + chrome.i18n.getMessage('@@extension_id');
         for (var tab of tabs) {
           if (!tab.url.startsWith(prefix_before)) {
             continue;
           }
           count += 1;
-          var migrated_url = prefix_after + tab.url.substr(prefix_before.length);
+          var migrated_url =
+            prefix_after + tab.url.substr(prefix_before.length);
           chrome.tabs.update(tab.id, { url: migrated_url });
         }
         alert(chrome.i18n.getMessage('js_history_migrate_success', '' + count));

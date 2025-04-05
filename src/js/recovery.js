@@ -1,16 +1,27 @@
-/*global chrome, historyItems, gsMessages, gsSession, gsStorage, gsIndexedDb, gsChrome, gsUtils */
+/*global chrome, historyItems, gsMessages, gsSession, gsStorage, gsIndexedDb, gsChrome, gsUtils, gsViewGlobals */
 (function(global) {
   'use strict';
 
+  var restoreAttempted = false;
+  var tabsToRecover = [];
+
   try {
-    chrome.extension.getBackgroundPage().tgs.setViewGlobals(global);
+    gsViewGlobals
+      .setViewGlobals(global)
+      .then(() => {
+        gsUtils
+          .documentReadyAndLocalisedAsPromised(document)
+          .then(initRecovery);
+      })
+      .catch(err => {
+        console.error('Failed to initialize global variables:', err);
+        window.setTimeout(() => window.location.reload(), 1000);
+      });
   } catch (e) {
+    console.error(e);
     window.setTimeout(() => window.location.reload(), 1000);
     return;
   }
-
-  var restoreAttempted = false;
-  var tabsToRecover = [];
 
   async function getRecoverableTabs(currentTabs) {
     const lastSession = await gsIndexedDb.fetchLastSession();
@@ -95,7 +106,7 @@
     document.getElementById('restoreSession').style.display = 'none';
   }
 
-  gsUtils.documentReadyAndLocalisedAsPromised(document).then(async function() {
+  async function initRecovery() {
     var restoreEl = document.getElementById('restoreSession'),
       manageEl = document.getElementById('manageManuallyLink'),
       previewsEl = document.getElementById('previewsOffBtn'),
@@ -105,7 +116,7 @@
 
     manageEl.onclick = function(e) {
       e.preventDefault();
-      chrome.tabs.create({ url: chrome.extension.getURL('history.html') });
+      chrome.tabs.create({ url: chrome.runtime.getURL('history.html') });
     };
 
     if (previewsEl) {
@@ -134,8 +145,8 @@
     restoreEl.addEventListener('click', performRestore);
 
     const currentTabs = await gsChrome.tabsQuery();
-    const tabsToRecover = await getRecoverableTabs(currentTabs);
-    if (tabsToRecover.length === 0) {
+    const tabsToRecoverResult = await getRecoverableTabs(currentTabs);
+    if (tabsToRecoverResult && tabsToRecoverResult.length === 0) {
       hideRecoverySection();
       return;
     }
@@ -144,13 +155,13 @@
       tabToRecover.title = gsUtils.getCleanTabTitle(tabToRecover);
       tabToRecover.url = gsUtils.getOriginalUrl(tabToRecover.url);
       tabEl = await historyItems.createTabHtml(tabToRecover, false);
-      tabEl.onclick = function() {
+      tabEl.onclick = (function(tab) {
         return function(e) {
           e.preventDefault();
-          chrome.tabs.create({ url: tabToRecover.url, active: false });
-          removeTabFromList(tabToRecover);
+          chrome.tabs.create({ url: tab.url, active: false });
+          removeTabFromList(tab);
         };
-      };
+      })(tabToRecover);
       recoveryEl.appendChild(tabEl);
     }
 
@@ -166,7 +177,7 @@
         }
       });
     }
-  });
+  }
 
   global.exports = {
     removeTabFromList,

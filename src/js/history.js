@@ -1,10 +1,30 @@
-/*global chrome, historyItems, historyUtils, gsSession, gsIndexedDb, gsUtils, gsStorage */
+/*global chrome, historyItems, historyUtils, gsSession, gsIndexedDb, gsUtils, gsStorage, gsViewGlobals */
 (function(global) {
   'use strict';
 
   try {
-    chrome.extension.getBackgroundPage().tgs.setViewGlobals(global);
+    gsViewGlobals
+      .setViewGlobals(global)
+      .then(() => {
+        gsUtils.documentReadyAndLocalisedAsPromised(document).then(function() {
+          render();
+
+          if (chrome.runtime.inIncognitoContext) {
+            Array.prototype.forEach.call(
+              document.getElementsByClassName('noIncognito'),
+              function(el) {
+                el.style.display = 'none';
+              }
+            );
+          }
+        });
+      })
+      .catch(err => {
+        console.error('Failed to initialize global variables:', err);
+        window.setTimeout(() => window.location.reload(), 1000);
+      });
   } catch (e) {
+    console.error(e);
     window.setTimeout(() => window.location.reload(), 1000);
     return;
   }
@@ -34,7 +54,7 @@
 
   function deleteSession(sessionId) {
     var result = window.confirm(
-      chrome.i18n.getMessage('js_history_confirm_delete'),
+      chrome.i18n.getMessage('js_history_confirm_delete')
     );
     if (result) {
       gsIndexedDb.removeSessionFromHistory(sessionId).then(function() {
@@ -66,7 +86,7 @@
 
   async function toggleSession(element, sessionId) {
     var sessionContentsEl = element.getElementsByClassName(
-      'sessionContents',
+      'sessionContents'
     )[0];
     var sessionIcon = element.getElementsByClassName('sessionIcon')[0];
     if (sessionIcon.classList.contains('icon-plus-squared-alt')) {
@@ -94,7 +114,7 @@
         for (const [i, curWindow] of curSession.windows.entries()) {
           curWindow.sessionId = curSession.sessionId;
           sessionContentsEl.appendChild(
-            createWindowElement(curSession, curWindow, i),
+            createWindowElement(curSession, curWindow, i)
           );
 
           const tabPromises = [];
@@ -128,43 +148,43 @@
       sessionEl.getElementsByClassName('sessionIcon')[0],
       function() {
         toggleSession(sessionEl, session.sessionId); //async. unhandled promise
-      },
+      }
     );
     addClickListenerToElement(
       sessionEl.getElementsByClassName('sessionLink')[0],
       function() {
         toggleSession(sessionEl, session.sessionId); //async. unhandled promise
-      },
+      }
     );
     addClickListenerToElement(
       sessionEl.getElementsByClassName('exportLink')[0],
       function() {
         historyUtils.exportSessionWithId(null, session.sessionId);
-      },
+      }
     );
     addClickListenerToElement(
       sessionEl.getElementsByClassName('resuspendLink')[0],
       function() {
         reloadTabs(session.sessionId, null, true); // async
-      },
+      }
     );
     addClickListenerToElement(
       sessionEl.getElementsByClassName('reloadLink')[0],
       function() {
         reloadTabs(session.sessionId, null, false); // async
-      },
+      }
     );
     addClickListenerToElement(
       sessionEl.getElementsByClassName('saveLink')[0],
       function() {
         historyUtils.saveSession(session.sessionId, null);
-      },
+      }
     );
     addClickListenerToElement(
       sessionEl.getElementsByClassName('deleteLink')[0],
       function() {
         deleteSession(session.sessionId);
-      },
+      }
     );
     return sessionEl;
   }
@@ -177,27 +197,27 @@
       windowEl.getElementsByClassName('resuspendLink')[0],
       function() {
         reloadTabs(session.sessionId, window.id, true); // async
-      },
+      }
     );
     addClickListenerToElement(
       windowEl.getElementsByClassName('reloadLink')[0],
       function() {
         reloadTabs(session.sessionId, window.id, false); // async
-      },
+      }
     );
     addClickListenerToElement(
       windowEl.getElementsByClassName('exportLink' + index)[0],
       function() {
         // document.getElementById('debugWindowId').innerText = 'Window ID sent: ' + window.id;
         historyUtils.exportSessionWithId(window.id, session.sessionId);
-      },
+      }
     );
     addClickListenerToElement(
       windowEl.getElementsByClassName('saveLink' + index)[0],
       function() {
         // document.getElementById('debugWindowId').innerText = 'Window ID sent: ' + window.id;
         historyUtils.saveSession(session.sessionId, window.id);
-      },
+      }
     );
     return windowEl;
   }
@@ -210,14 +230,16 @@
       tabEl.getElementsByClassName('removeLink')[0],
       function() {
         removeTab(tabEl, session.sessionId, window.id, tab.id);
-      },
+      }
     );
     return tabEl;
   }
 
   function render() {
     //Set theme
-    document.body.classList.add(gsStorage.getOption(gsStorage.THEME) === 'dark' ? 'dark' : null);
+    document.body.classList.add(
+      gsStorage.getOption(gsStorage.THEME) === 'dark' ? 'dark' : null
+    );
 
     let currentDiv = document.getElementById('currentSessions'),
       sessionsDiv = document.getElementById('recoverySessions'),
@@ -254,7 +276,7 @@
     importSessionActionEl.addEventListener(
       'change',
       historyUtils.importSession,
-      false,
+      false
     );
     importSessionEl.onclick = function() {
       importSessionActionEl.click();
@@ -265,20 +287,5 @@
       var migrateTabsFromIdEl = document.getElementById('migrateFromId');
       historyUtils.migrateTabs(migrateTabsFromIdEl.value);
     };
-
-    //hide incompatible sidebar items if in incognito mode
-    if (chrome.extension.inIncognitoContext) {
-      Array.prototype.forEach.call(
-        document.getElementsByClassName('noIncognito'),
-        function(el) {
-          el.style.display = 'none';
-        },
-      );
-    }
   }
-
-  gsUtils.documentReadyAndLocalisedAsPromised(document).then(function() {
-    render();
-  });
-
 })(this);

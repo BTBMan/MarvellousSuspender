@@ -231,7 +231,7 @@ var gsUtils = {
     } else if (looseMatching) {
       return url.indexOf('suspended.html') > 0;
     } else {
-      return url.indexOf(chrome.extension.getURL('suspended.html')) === 0;
+      return url.indexOf(chrome.runtime.getURL('suspended.html')) === 0;
     }
   },
 
@@ -442,7 +442,7 @@ var gsUtils = {
       'uri=' +
       url;
 
-    return chrome.extension.getURL('suspended.html' + args);
+    return chrome.runtime.getURL('suspended.html' + args);
   },
 
   getRootUrl: function(url, includePath, includeScheme) {
